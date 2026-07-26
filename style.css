@@ -1,0 +1,510 @@
+/* FOUR IN A ROWBOAT — a Btown Games production */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --navy: #0e2238;
+  --navy-2: #16324e;
+  --cream: #f6efdc;
+  --cream-dim: #d9ccae;
+  --sun: #f2a24a;
+  --champ: #3fa860;
+  --red: #d4553a;
+  --red-deep: #a03823;
+  --gold: #f2b34c;
+  --gold-deep: #c07d1e;
+  --panel: #1c4a6e;
+  --panel-dark: #143a58;
+  --hole: #0a2438;
+  --wood: #8a5a33;
+}
+
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+  background: var(--navy);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+/* Dusk over the lake: night sky → sunset band → deep water */
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    #0b1c30 0%,
+    #16324e 26%,
+    #594860 33%,
+    #a05a48 40%,
+    #e79352 45%,
+    #123c5c 46%,
+    #0e3049 70%,
+    #081c30 100%
+  );
+}
+
+#mountains {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(45% - 8vh);
+  width: 100%;
+  height: 8vh;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.hidden { display: none !important; }
+
+/* ---------------------------------------------------------------- screens */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+
+#menu { justify-content: center; }
+
+.menu-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3vh;
+  width: 100%;
+  max-width: 420px;
+  flex: 1;
+  justify-content: center;
+  min-height: 0;
+}
+
+/* wordmark */
+#logo { text-align: center; }
+.l-four {
+  display: block;
+  font-size: clamp(18px, 3vh, 26px);
+  font-weight: 900;
+  letter-spacing: 0.55em;
+  margin-left: 0.55em; /* optical centering vs letterspacing */
+  color: var(--sun);
+  text-shadow: 0 2px 0 rgba(14, 34, 56, 0.8);
+}
+.l-rowboat { display: block; margin-top: 0.6vh; white-space: nowrap; }
+.l-rowboat i {
+  display: inline-block;
+  font-style: normal;
+  font-weight: 900;
+  font-size: clamp(38px, min(10vh, 12.5vw), 84px);
+  line-height: 1;
+  color: var(--red);
+  -webkit-text-stroke: 2.5px var(--navy);
+  text-shadow: 0 5px 0 var(--navy), 0 8px 18px rgba(0, 0, 0, 0.4);
+  animation: bobble 2.6s ease-in-out infinite;
+}
+.l-rowboat i:nth-child(even) { color: var(--gold); }
+.l-rowboat i:nth-child(2) { animation-delay: 0.12s; }
+.l-rowboat i:nth-child(3) { animation-delay: 0.24s; }
+.l-rowboat i:nth-child(4) { animation-delay: 0.36s; }
+.l-rowboat i:nth-child(5) { animation-delay: 0.48s; }
+.l-rowboat i:nth-child(6) { animation-delay: 0.6s; }
+.l-rowboat i:nth-child(7) { animation-delay: 0.72s; }
+@keyframes bobble {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-8px) rotate(1.5deg); }
+}
+
+#tagline {
+  text-align: center;
+  color: var(--cream);
+  font-size: clamp(13px, 2vh, 16px);
+  font-weight: 600;
+  line-height: 1.45;
+  text-shadow: 0 1px 4px rgba(14, 34, 56, 0.8);
+}
+
+#modes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.big-btn {
+  font-size: clamp(18px, 2.8vh, 23px);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--navy);
+  background: linear-gradient(180deg, #ffc24e, var(--sun));
+  border: 3px solid var(--navy);
+  border-radius: 16px;
+  padding: 14px 38px;
+  box-shadow: 0 5px 0 var(--navy), 0 10px 22px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.06s ease;
+}
+.big-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--navy); }
+
+.mode-sub {
+  font-size: 12px;
+  color: var(--cream-dim);
+  font-style: italic;
+  text-shadow: 0 1px 3px rgba(14, 34, 56, 0.8);
+  margin-top: -2px;
+}
+
+#botRow {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 380px;
+  margin-top: 1vh;
+}
+.bot-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  padding: 12px 8px;
+  color: var(--cream);
+  background: rgba(14, 34, 56, 0.55);
+  border: 2px solid rgba(246, 239, 220, 0.3);
+  border-radius: 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.bot-btn:active { background: rgba(246, 239, 220, 0.14); }
+.bot-name { font-size: 14px; font-weight: 900; letter-spacing: 0.06em; }
+.bot-blurb { font-size: 11px; color: var(--cream-dim); font-style: italic; }
+
+#credit {
+  flex: none;
+  text-align: center;
+  font-size: 12px;
+  color: var(--cream-dim);
+  text-shadow: 0 1px 3px rgba(14, 34, 56, 0.9);
+  padding-bottom: 4px;
+}
+#credit a { color: var(--sun); font-weight: 700; text-decoration: none; }
+#credit a:active { text-decoration: underline; }
+
+/* ---------------------------------------------------------------- game screen */
+
+#game { justify-content: flex-start; gap: 1vh; }
+
+#topbar {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.chip-btn {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--cream);
+  background: rgba(14, 34, 56, 0.55);
+  border: 2px solid rgba(246, 239, 220, 0.3);
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.chip-btn:active { background: rgba(246, 239, 220, 0.2); }
+
+#mute {
+  font-size: 17px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 2px solid rgba(246, 239, 220, 0.25);
+  background: rgba(14, 34, 56, 0.55);
+  color: var(--cream);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+#tally {
+  flex: 1;
+  text-align: center;
+  font-size: clamp(13px, 2vh, 16px);
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: var(--cream);
+  text-shadow: 0 1px 4px rgba(14, 34, 56, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#tally .t-red { color: #ff8f73; }
+#tally .t-gold { color: var(--gold); }
+
+/* turn banner */
+#turnbar { min-height: 34px; display: flex; align-items: center; }
+#turnChip {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 2px solid var(--navy);
+  color: var(--navy);
+  box-shadow: 0 3px 0 rgba(14, 34, 56, 0.6);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+#turnChip.red { background: linear-gradient(180deg, #ff7b5c, var(--red)); color: #fff; }
+#turnChip.gold { background: linear-gradient(180deg, #ffd06e, var(--gold)); }
+#turnChip.thinking { animation: thinkPulse 1s ease-in-out infinite; }
+@keyframes thinkPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* ---------------------------------------------------------------- the boat */
+
+#lake {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: none;
+}
+
+#boat {
+  position: relative;
+  width: min(94vw, 440px, 62vh);
+  z-index: 2;
+}
+
+#board {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 7 / 6;
+  border-radius: 14px 14px 4px 4px;
+  overflow: hidden;
+  /* dusk water showing through the holes, behind the pieces */
+  background: linear-gradient(180deg, #0d2c44, #081e32);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+#pieces { position: absolute; inset: 0; z-index: 1; }
+
+#holes {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  pointer-events: none;
+}
+/* each cell is painted panel with a transparent porthole punched out */
+#holes > div {
+  background: radial-gradient(circle at 50% 50%, transparent 39%, var(--panel-dark) 40.5%, var(--panel) 46%, var(--panel) 100%);
+}
+
+/* tap targets: 7 invisible column strips over the board */
+#cols {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  aspect-ratio: 7 / 6; /* cover the board only, not the hull */
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+#cols > button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+#cols.disabled > button { pointer-events: none; }
+@media (hover: hover) {
+  #cols > button:hover { background: rgba(246, 239, 220, 0.06); }
+}
+
+/* buoys */
+.piece {
+  position: absolute;
+  width: calc(100% / 7);
+  height: calc(100% / 6);
+  padding: 4.5%;
+  will-change: transform;
+}
+.piece::before {
+  content: "";
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  padding: 0;
+}
+.piece.red::before {
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.55) 0 8%, transparent 26%),
+    linear-gradient(180deg, transparent 40%, transparent 44%, #f6efdc 44%, #f6efdc 58%, transparent 58%),
+    radial-gradient(circle at 50% 42%, #ff7b5c, var(--red) 55%, var(--red-deep));
+  box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.piece.gold::before {
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.6) 0 8%, transparent 26%),
+    linear-gradient(180deg, transparent 40%, transparent 44%, #0e2238 44%, #0e2238 58%, transparent 58%),
+    radial-gradient(circle at 50% 42%, #ffd06e, var(--gold) 55%, var(--gold-deep));
+  box-shadow: inset 0 -4px 8px rgba(0, 0, 0, 0.35), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* win line: glow + pulse; everything else dims */
+#board.showdown .piece:not(.winner) { filter: brightness(0.45) saturate(0.7); }
+.piece.winner { z-index: 2; }
+.piece.winner::before {
+  animation: winnerPulse 0.9s ease-in-out infinite;
+  outline: 3px solid var(--cream);
+  outline-offset: -1px;
+}
+@keyframes winnerPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 6px 2px rgba(246, 239, 220, 0.7); }
+  50% { transform: scale(1.09); box-shadow: 0 0 18px 6px rgba(246, 239, 220, 0.9); }
+}
+
+/* the hull under the board */
+#hull {
+  display: block;
+  width: 108%;
+  margin-left: -4%;
+  height: auto;
+  margin-top: -2px;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.5));
+}
+
+/* waves lapping in front of the boat */
+.waves {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  height: 26px;
+  background-repeat: repeat-x;
+  background-size: 90px 26px;
+  pointer-events: none;
+}
+.waves-back {
+  bottom: 4px;
+  z-index: 1;
+  opacity: 0.55;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='26'%3E%3Cpath d='M0 13 Q11 4 22.5 13 T45 13 T67.5 13 T90 13 V26 H0 Z' fill='%231b4f78'/%3E%3C/svg%3E");
+  animation: lap 7s linear infinite;
+}
+.waves-front {
+  bottom: -6px;
+  z-index: 3;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='26'%3E%3Cpath d='M0 13 Q11 5 22.5 13 T45 13 T67.5 13 T90 13 V26 H0 Z' fill='%23123c5c'/%3E%3C/svg%3E");
+  animation: lap 5s linear infinite reverse;
+}
+@keyframes lap {
+  from { background-position-x: 0; }
+  to { background-position-x: 90px; }
+}
+
+/* gentle bob for the whole boat while a game is on */
+#boat.afloat { animation: boatBob 5s ease-in-out infinite; }
+@keyframes boatBob {
+  0%, 100% { transform: translateY(0) rotate(-0.35deg); }
+  50% { transform: translateY(4px) rotate(0.35deg); }
+}
+
+/* ---------------------------------------------------------------- results */
+
+#resultbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 15;
+}
+#resultText {
+  font-size: clamp(20px, 3.4vh, 30px);
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-align: center;
+  color: var(--cream);
+  text-shadow: 0 3px 0 rgba(14, 34, 56, 0.8), 0 6px 16px rgba(0, 0, 0, 0.5);
+  transform: rotate(-1.5deg);
+  animation: resultIn 0.35s ease-out;
+}
+#resultText.red-win { color: #ff9d84; }
+#resultText.gold-win { color: var(--gold); }
+@keyframes resultIn {
+  from { transform: rotate(-1.5deg) scale(0.6); opacity: 0; }
+  to { transform: rotate(-1.5deg) scale(1); opacity: 1; }
+}
+#resultBtns { display: flex; gap: 10px; align-items: center; }
+#resultBtns .big-btn { padding: 11px 28px; font-size: 17px; }
+
+/* ---------------------------------------------------------------- Champ */
+
+#champ {
+  position: absolute;
+  bottom: calc(env(safe-area-inset-bottom, 0px) - 6px);
+  right: 3%;
+  z-index: 14;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  animation: champUp 0.55s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+#champSvg { width: clamp(80px, 14vh, 130px); height: auto; transform: scaleX(-1); }
+#champBubble {
+  background: var(--cream);
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 12px;
+  border-radius: 14px 14px 3px 14px;
+  margin-right: 40%;
+  margin-bottom: 4px;
+  max-width: 190px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  animation: bubbleIn 0.3s ease-out 0.4s backwards;
+}
+@keyframes champUp {
+  from { transform: translateY(110%); }
+  to { transform: translateY(0); }
+}
+@keyframes bubbleIn {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ---------------------------------------------------------------- desktop */
+
+@media (min-width: 700px) {
+  #game { gap: 1.6vh; }
+  #turnChip { font-size: 15px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .l-rowboat i, #boat.afloat, .waves-back, .waves-front,
+  #turnChip.thinking, .piece.winner::before { animation: none !important; }
+}

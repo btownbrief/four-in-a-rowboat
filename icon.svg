@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="22" fill="#0e2238"/>
+  <!-- dusk sun -->
+  <circle cx="72" cy="26" r="11" fill="#f2a24a"/>
+  <circle cx="72" cy="26" r="15" fill="#f2a24a" opacity="0.25"/>
+  <!-- four buoys in a row -->
+  <circle cx="23" cy="52" r="9" fill="#d4553a"/>
+  <circle cx="41" cy="52" r="9" fill="#f2b34c"/>
+  <circle cx="59" cy="52" r="9" fill="#d4553a"/>
+  <circle cx="77" cy="52" r="9" fill="#f2b34c"/>
+  <!-- buoy stripes + shine -->
+  <rect x="16" y="50" width="14" height="4" rx="2" fill="#f6efdc" opacity="0.85"/>
+  <rect x="34" y="50" width="14" height="4" rx="2" fill="#0e2238" opacity="0.7"/>
+  <rect x="52" y="50" width="14" height="4" rx="2" fill="#f6efdc" opacity="0.85"/>
+  <rect x="70" y="50" width="14" height="4" rx="2" fill="#0e2238" opacity="0.7"/>
+  <circle cx="20" cy="48.5" r="2" fill="#fff" opacity="0.7"/>
+  <circle cx="38" cy="48.5" r="2" fill="#fff" opacity="0.7"/>
+  <circle cx="56" cy="48.5" r="2" fill="#fff" opacity="0.7"/>
+  <circle cx="74" cy="48.5" r="2" fill="#fff" opacity="0.7"/>
+  <!-- rowboat hull -->
+  <path d="M8 58 Q13 74 30 76 L70 76 Q87 74 92 58 L83 60 Q78 69 68 70 L32 70 Q22 69 17 60 Z" fill="#8a5a33"/>
+  <path d="M8 58 Q13 74 30 76 L70 76 Q87 74 92 58 L88 58.8 Q81 71.5 69 72.3 L31 72.3 Q19 71.5 12 58.8 Z" fill="#6b4226"/>
+  <!-- waterline -->
+  <path d="M4 82 q6 -4 12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 t12 0 v18 h-96 Z" fill="#2a5f8a"/>
+</svg>
