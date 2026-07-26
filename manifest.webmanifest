@@ -1,0 +1,14 @@
+{
+  "name": "FOUR IN A ROWBOAT",
+  "short_name": "Four in a Rowboat",
+  "description": "Connect 4 on Lake Champlain: line up four buoys in a rowboat before your rival does. A Btown Games production.",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#0e2238",
+  "theme_color": "#0e2238",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-180.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

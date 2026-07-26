@@ -224,6 +224,7 @@ html, body {
   border: 2px solid rgba(246, 239, 220, 0.3);
   border-radius: 12px;
   padding: 8px 12px;
+  min-height: 44px; /* thumb-sized tap target */
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -231,8 +232,8 @@ html, body {
 
 #mute {
   font-size: 17px;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   border: 2px solid rgba(246, 239, 220, 0.25);
   background: rgba(14, 34, 56, 0.55);

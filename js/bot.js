@@ -15,7 +15,7 @@
 //             under 300ms — even on a mid-range phone.
 
 import {
-  ROWS, COLS, EMPTY, RED, GOLD, legalMoves, applyMove, getStatus,
+  ROWS, COLS, RED, GOLD, legalMoves, applyMove, getStatus,
 } from './engine.js';
 
 const WIN_SCORE = 1_000_000;
@@ -135,8 +135,11 @@ function negamax(state, depth, alpha, beta) {
   if (status.draw) return 0;
   if (depth === 0) return evaluate(state.grid, state.turn);
 
+  // Legality comes from the engine, not from peeking at the grid — the
+  // ORDER filter just keeps the center-first visit that alpha-beta loves.
+  const legal = legalMoves(state);
   for (const col of ORDER) {
-    if (state.grid[ROWS - 1][col] !== EMPTY) continue;
+    if (!legal.includes(col)) continue;
     const score = -negamax(applyMove(state, col), depth - 1, -beta, -alpha);
     if (aborted) return 0;
     if (score >= beta) return score;
