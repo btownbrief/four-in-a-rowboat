@@ -416,6 +416,7 @@ function friendly(err) {
 }
 
 async function onlineGo() {
+  if ($('opGo').disabled) return; // Enter key can't double-submit
   const name = opName.value.trim();
   if (!name) {
     opError.textContent = 'Every captain needs a name.';
@@ -454,6 +455,7 @@ async function onlineGo() {
 }
 
 function openLobby(match) {
+  if (lobbyEl._match && lobbyEl._match !== match) lobbyEl._match.stop();
   lobbyCode.textContent = match.code;
   lobbyEl.classList.remove('hidden');
   match.start({
@@ -485,9 +487,13 @@ async function rejoinCrew() {
     } else {
       enterOnlineGame(match);
     }
-  } catch {
-    clearSession(GAME); // the crew rowed on without us — room's gone
-    refreshRejoin();
+  } catch (err) {
+    // Only a room that's truly gone forfeits the session — a flaky
+    // connection must not delete the one path back to the game.
+    if (err && (err.code === 'not_found' || err.code === 'not_seated' || err.code === 'room_started')) {
+      clearSession(GAME);
+      refreshRejoin();
+    }
   } finally {
     rejoinBtn.disabled = false;
   }
@@ -599,9 +605,10 @@ function onRemoteStatus(status) {
 }
 
 function onRemotePresence(opponents) {
+  pollErrors = 0; // this callback only fires on a successful poll
   const opp = opponents[0];
   if (opp && opp.left && rematchBtn) rematchBtn.classList.add('hidden');
-  if (!busy && pollErrors === 0) renderTurn(); // keeps the away note fresh
+  if (!busy) renderTurn(); // clears any choppy-connection note, keeps away fresh
 }
 
 function onPollError(err) {

@@ -61,6 +61,7 @@ t(savedSession(GAME)?.roomId === host.roomId, 'host session saved');
 device('B');
 await expectCode(OnlineMatch.join({ game: GAME, code: 'ZZZZ', name: 'X' }), 'not_found', 'bad code rejected');
 await expectCode(OnlineMatch.join({ game: 'crazy-eights', code: host.code, name: 'X' }), 'wrong_game', 'wrong game rejected');
+await expectCode(OnlineMatch.join({ game: null, code: host.code, name: 'X' }), 'bad_game', 'null game rejected (SQL parity)');
 const guest = await OnlineMatch.join({ game: GAME, code: ` ${host.code.toLowerCase()} `, name: 'Cap B' });
 t(guest.seat === 1 && guest.status === 'playing', 'guest joins (sloppy code ok), game starts');
 t(guest.opponents().length === 1 && guest.opponents()[0].name === 'Cap A', 'guest sees host name');
@@ -116,12 +117,26 @@ device('A');
 const resumed = await OnlineMatch.resume({ game: GAME });
 t(resumed.roomId === host.roomId && resumed.seat === 0 && resumed.status === 'playing', 'resume reattaches to the room');
 
-// leave: other side sees the flag, session cleared
+// out-of-order responses must never roll state backwards
+{
+  const before = { state: guest.state, version: guest.version };
+  await guest._fetch();
+  guest.state = before.state; // simulate a stale response landing late…
+  guest.version = before.version + 1000; // …after a much newer one applied
+  const res = await guest._fetch();
+  t(guest.version === before.version + 1000, 'stale poll response is ignored');
+  guest.version = res.version; // restore truth for the tests below
+  guest.state = res.state;
+  guest.status = res.status;
+}
+
+// leave: other side sees the flag, session cleared, pushes barred
 await resumed.leave();
 t(savedSession(GAME) === null, 'leave clears the session');
 device('B');
 await guest._fetch();
 t(guest.status === 'over' && guest.opponents()[0].left === true, 'guest sees host left');
+await expectCode(guest.push(createInitialState(), {}), 'opponent_left', 'push into an abandoned room barred');
 
 // full room turns a third phone away
 device('A');
