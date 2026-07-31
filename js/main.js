@@ -14,15 +14,22 @@ import { OnlineMatch, savedSession, clearSession, getName } from './rooms.js';
 const $ = (id) => document.getElementById(id);
 const menuEl = $('menu');
 const gameEl = $('game');
+const lakeEl = $('lake');
 const boatEl = $('boat');
 const boardEl = $('board');
 const piecesEl = $('pieces');
+const landingPreview = $('landingPreview');
 const holesEl = $('holes');
 const colsEl = $('cols');
+const threatChip = $('threatChip');
+const dropSplash = $('dropSplash');
 const turnChip = $('turnChip');
 const tallyEl = $('tally');
 const resultBar = $('resultbar');
 const resultText = $('resultText');
+const gloatEl = $('gloat');
+const gloatIcon = $('gloatIcon');
+const gloatBubble = $('gloatBubble');
 const champEl = $('champ');
 const champBubble = $('champBubble');
 const dockBtn = $('dockBtn');
@@ -58,6 +65,23 @@ const BOT_WIN_LINES = {
   paddler: 'THE PADDLER DRIFTS PAST YOU',
   skipper: 'THE SKIPPER TAKES IT',
 };
+const GLOAT_LINES = {
+  paddler: [
+    'Caught a lucky current!',
+    'A lazy float still gets there.',
+    'The lake did most of the work.',
+  ],
+  skipper: [
+    'Keep your eyes on the wind, captain.',
+    'Forty summers teaches a thing or two.',
+    'Good race. Mind the crosscurrent.',
+  ],
+  online: [
+    'Good race, captain!',
+    'Caught the right current!',
+    'Good pull — rematch?',
+  ],
+};
 
 /* ------------------------------------------------------------- game shell */
 
@@ -68,6 +92,10 @@ let botTimer = 0;
 let firstPlayer = RED; // who tosses first this game
 let tally = { red: 0, gold: 0, calm: 0 };
 let online = null; // { match, myPlayer } while in an online crew
+let effectRun = 0;
+let previewCol = null;
+const effectTimers = new Set();
+const usedGloatLines = new Set();
 
 // Build the 42 porthole cells and 7 column tap strips once.
 for (let i = 0; i < ROWS * COLS; i++) holesEl.appendChild(document.createElement('div'));
@@ -76,6 +104,33 @@ for (let c = 0; c < COLS; c++) {
   strip.dataset.col = String(c);
   strip.setAttribute('aria-label', `Drop a buoy in column ${c + 1}`);
   strip.addEventListener('click', () => onColumnTap(c));
+  strip.addEventListener('pointerenter', () => {
+    previewCol = c;
+    showLandingPreview(c);
+  });
+  strip.addEventListener('pointerdown', () => showLandingPreview(c));
+  strip.addEventListener('pointerleave', () => {
+    previewCol = null;
+    hideLandingPreview();
+  });
+  strip.addEventListener('pointerup', (event) => {
+    if (event.pointerType !== 'mouse') {
+      previewCol = null;
+      hideLandingPreview();
+    }
+  });
+  strip.addEventListener('pointercancel', () => {
+    previewCol = null;
+    hideLandingPreview();
+  });
+  strip.addEventListener('focus', () => {
+    previewCol = c;
+    showLandingPreview(c);
+  });
+  strip.addEventListener('blur', () => {
+    previewCol = null;
+    hideLandingPreview();
+  });
   colsEl.appendChild(strip);
 }
 
@@ -92,6 +147,7 @@ $('mute').textContent = sound.muted ? '🔇' : '🔊';
 function startMatch(chosen) {
   mode = chosen;
   tally = { red: 0, gold: 0, calm: 0 };
+  usedGloatLines.clear();
   firstPlayer = RED; // the human (or red captain) opens the first game
   menuEl.classList.add('hidden');
   gameEl.classList.remove('hidden');
@@ -117,6 +173,7 @@ function backToDock() {
     dockBtn.textContent = '⚓ DOCK';
   }
   clearTimeout(botTimer);
+  clearEffects();
   busy = false;
   gameEl.classList.add('hidden');
   menuEl.classList.remove('hidden');
@@ -133,16 +190,42 @@ function rematch() {
 
 function newGame() {
   clearTimeout(botTimer);
+  clearEffects();
   state = createInitialState(firstPlayer);
   busy = false;
   piecesEl.innerHTML = '';
   boardEl.classList.remove('showdown');
   resultBar.classList.add('hidden');
+  gloatEl.classList.add('hidden');
   champEl.classList.add('hidden');
   colsEl.classList.remove('disabled');
   renderTally();
   renderTurn();
   if (isBotsTurn()) scheduleBotMove();
+}
+
+function scheduleEffect(fn, delay, run = effectRun) {
+  const timer = setTimeout(() => {
+    effectTimers.delete(timer);
+    if (run === effectRun) fn();
+  }, delay);
+  effectTimers.add(timer);
+  return timer;
+}
+
+function clearEffects() {
+  effectRun++;
+  for (const timer of effectTimers) clearTimeout(timer);
+  effectTimers.clear();
+  previewCol = null;
+  boardEl.classList.remove('win-impact');
+  boatEl.classList.remove('drop-impact');
+  dropSplash.classList.remove('active');
+  resultBar.classList.remove('fresh');
+  gloatEl.classList.remove('fresh');
+  piecesEl.querySelectorAll('.impact').forEach((el) => el.classList.remove('impact'));
+  hideLandingPreview();
+  clearThreat();
 }
 
 /* ------------------------------------------------------------- turns */
@@ -155,6 +238,8 @@ function onColumnTap(col) {
   if (busy || isBotsTurn()) return;
   if (online && (state.turn !== online.myPlayer || online.match.status !== 'playing')) return;
   if (!legalMoves(state).includes(col)) return; // full column or game over
+  hideLandingPreview();
+  clearThreat();
   playMove(col);
 }
 
@@ -178,7 +263,7 @@ function playMove(col) {
   dropPiece(player, row, col, () => {
     const status = getStatus(state);
     if (status.over) {
-      finishGame(status);
+      finishGame(status, { fresh: true, lastMove: { row, col } });
     } else {
       busy = false;
       renderTurn();
@@ -188,6 +273,11 @@ function playMove(col) {
 }
 
 /* ------------------------------------------------------------- rendering */
+
+function canChooseColumn() {
+  if (busy || getStatus(state).over || isBotsTurn()) return false;
+  return !online || (state.turn === online.myPlayer && online.match.status === 'playing');
+}
 
 function pieceAt(row, col, player) {
   const el = document.createElement('div');
@@ -199,13 +289,30 @@ function pieceAt(row, col, player) {
   return el;
 }
 
+function showLandingPreview(col) {
+  if (!canChooseColumn() || !legalMoves(state).includes(col)) {
+    hideLandingPreview();
+    return;
+  }
+  const row = landingRow(state, col);
+  const dispRow = ROWS - 1 - row;
+  landingPreview.className = `piece preview ${state.turn === RED ? 'red' : 'gold'}`;
+  landingPreview.style.left = `${(col * 100) / COLS}%`;
+  landingPreview.style.top = `${(dispRow * 100) / ROWS}%`;
+}
+
+function hideLandingPreview() {
+  landingPreview.className = 'piece hidden';
+}
+
 function dropPiece(player, row, col, onLanded) {
+  const run = effectRun;
   const el = pieceAt(row, col, player);
   piecesEl.appendChild(el);
 
   if (reducedMotion || !el.animate) {
-    sound.plop(row);
-    onLanded();
+    dropImpact(row, col, run);
+    if (run === effectRun) onLanded();
     return;
   }
 
@@ -224,12 +331,12 @@ function dropPiece(player, row, col, onLanded) {
     ],
     { duration }
   );
-  setTimeout(() => sound.plop(row), fall * 0.62 + 60);
+  scheduleEffect(() => dropImpact(row, col, run), duration * 0.62, run);
   // Finish via whichever fires first: browsers throttle animation events in
   // backgrounded/occluded tabs, and the game must never wait on one.
   let landed = false;
   const land = () => {
-    if (landed) return;
+    if (landed || run !== effectRun) return;
     landed = true;
     onLanded();
   };
@@ -237,9 +344,62 @@ function dropPiece(player, row, col, onLanded) {
   setTimeout(land, duration + 130);
 }
 
+function dropImpact(row, col, run) {
+  if (run !== effectRun) return;
+  sound.plop(row);
+  if (reducedMotion) return;
+
+  const lakeRect = lakeEl.getBoundingClientRect();
+  const boardRect = boardEl.getBoundingClientRect();
+  const x = boardRect.left - lakeRect.left + ((col + 0.5) * boardRect.width) / COLS;
+  dropSplash.style.left = `${x}px`;
+
+  boatEl.classList.remove('drop-impact');
+  dropSplash.classList.remove('active');
+  void boatEl.offsetWidth;
+  boatEl.classList.add('drop-impact');
+  dropSplash.classList.add('active');
+  scheduleEffect(() => boatEl.classList.remove('drop-impact'), 380, run);
+  scheduleEffect(() => dropSplash.classList.remove('active'), 520, run);
+}
+
+function clearThreat() {
+  threatChip.classList.add('hidden');
+  colsEl.querySelectorAll('.danger').forEach((el) => {
+    el.classList.remove('danger');
+    el.setAttribute('aria-label', `Drop a buoy in column ${Number(el.dataset.col) + 1}`);
+  });
+}
+
+function renderThreat() {
+  clearThreat();
+  if (!canChooseColumn()) return;
+
+  const status = getStatus(state);
+  const opponent = status.turn === RED ? GOLD : RED;
+  const opponentTurn = { grid: state.grid, turn: opponent };
+  const dangerColumns = legalMoves(opponentTurn).filter((col) => {
+    const hypothetical = applyMove(opponentTurn, col);
+    return getStatus(hypothetical).winner === opponent;
+  });
+  if (!dangerColumns.length) return;
+
+  for (const col of dangerColumns) {
+    const strip = colsEl.children[col];
+    strip.classList.add('danger');
+    strip.setAttribute(
+      'aria-label',
+      `Danger: opponent can win in column ${col + 1}. Drop a buoy in column ${col + 1}`
+    );
+  }
+  threatChip.classList.remove('hidden');
+}
+
 function renderTurn() {
   const status = getStatus(state);
   if (status.over) {
+    clearThreat();
+    hideLandingPreview();
     turnChip.className = '';
     turnChip.textContent = '';
     return;
@@ -264,6 +424,8 @@ function renderTurn() {
     turnChip.textContent = THINKING[mode];
     turnChip.classList.add('thinking');
   }
+  renderThreat();
+  if (previewCol !== null) showLandingPreview(previewCol);
 }
 
 function renderTally() {
@@ -293,16 +455,24 @@ function esc(s) {
 
 /* ------------------------------------------------------------- endgame */
 
-function finishGame(status) {
+function finishGame(status, { fresh = false, lastMove = null } = {}) {
   colsEl.classList.add('disabled');
+  clearThreat();
+  hideLandingPreview();
   turnChip.className = '';
   turnChip.textContent = '';
+  gloatEl.classList.add('hidden');
+  gloatEl.classList.remove('fresh');
 
   if (status.winner !== null) {
-    boardEl.classList.add('showdown');
     for (const { row, col } of status.winLine) {
       const el = piecesEl.querySelector(`[data-cell="${row},${col}"]`);
       if (el) el.classList.add('winner');
+    }
+    if (fresh && lastMove && !reducedMotion) {
+      presentWinImpact(lastMove);
+    } else {
+      boardEl.classList.add('showdown');
     }
   }
 
@@ -311,7 +481,7 @@ function finishGame(status) {
   if (status.draw) {
     tally.calm++;
     text = "DEAD CALM — IT'S A DRAW";
-    sound.draw();
+    if (fresh) sound.draw();
     firstPlayer = firstPlayer === RED ? GOLD : RED; // swap openers after a stalemate
   } else if (mode === 'online') {
     const opp = online.match.opponents()[0] || {};
@@ -320,30 +490,43 @@ function finishGame(status) {
     cls = status.winner === RED ? 'red-win' : 'gold-win';
     if (iWon) {
       text = 'YOU ROW IT HOME!';
-      sound.win();
-      celebrateChamp();
+      if (fresh) {
+        sound.win();
+        celebrateChamp();
+      }
     } else {
       text = `${(opp.name || 'YOUR PAL').toUpperCase()} TAKES IT`;
-      sound.lose();
+      if (fresh) sound.lose();
+      showGloat('online', opp.name || 'YOUR PAL', '🌊', fresh);
     }
     firstPlayer = status.winner === RED ? GOLD : RED; // loser opens the rematch
   } else if (status.winner === RED) {
     tally.red++;
     cls = 'red-win';
     text = mode === 'pass' ? 'RED ROWS IT HOME!' : 'YOU ROW IT HOME!';
-    sound.win();
-    celebrateChamp();
+    if (fresh) {
+      sound.win();
+      celebrateChamp();
+    }
     firstPlayer = GOLD; // loser tosses first next game
   } else {
     tally.gold++;
     cls = 'gold-win';
     if (mode === 'pass') {
       text = 'GOLD ROWS IT HOME!';
-      sound.win();
-      celebrateChamp();
+      if (fresh) {
+        sound.win();
+        celebrateChamp();
+      }
     } else {
       text = BOT_WIN_LINES[mode];
-      sound.lose();
+      if (fresh) sound.lose();
+      showGloat(
+        mode,
+        `THE ${BOT_NAMES[mode]}`,
+        mode === 'skipper' ? '⛵' : '🛶',
+        fresh
+      );
     }
     firstPlayer = RED;
   }
@@ -351,8 +534,42 @@ function finishGame(status) {
   renderTally();
   resultText.textContent = text;
   resultText.className = cls;
+  resultBar.classList.toggle('fresh', fresh && !reducedMotion);
   // Let the winning line sink in for a beat before the banner lands.
-  setTimeout(() => resultBar.classList.remove('hidden'), status.winner !== null ? 650 : 250);
+  const resultDelay = fresh ? (status.winner !== null ? 650 : 250) : 0;
+  if (resultDelay) {
+    scheduleEffect(() => resultBar.classList.remove('hidden'), resultDelay);
+    scheduleEffect(() => {
+      resultBar.classList.remove('fresh');
+      gloatEl.classList.remove('fresh');
+    }, resultDelay + 700);
+  } else {
+    resultBar.classList.remove('hidden');
+  }
+}
+
+function presentWinImpact(lastMove) {
+  const fourth = piecesEl.querySelector(
+    `[data-cell="${lastMove.row},${lastMove.col}"]`
+  );
+  if (fourth) fourth.classList.add('impact');
+  boardEl.classList.add('win-impact');
+  scheduleEffect(() => boardEl.classList.add('showdown'), 280);
+  scheduleEffect(() => boardEl.classList.remove('win-impact'), 420);
+  if (fourth) scheduleEffect(() => fourth.classList.remove('impact'), 720);
+}
+
+function showGloat(kind, speaker, icon, fresh) {
+  const available = GLOAT_LINES[kind].filter((line) => !usedGloatLines.has(`${kind}:${line}`));
+  const line = fresh
+    ? (available[Math.floor(Math.random() * available.length)]
+      || `Another one for the logbook — round ${tally.red + tally.gold + tally.calm}.`)
+    : GLOAT_LINES[kind][0];
+  if (fresh) usedGloatLines.add(`${kind}:${line}`);
+  gloatIcon.textContent = icon;
+  gloatBubble.textContent = `${speaker}: “${line}”`;
+  gloatEl.classList.remove('hidden');
+  gloatEl.classList.toggle('fresh', fresh && !reducedMotion);
 }
 
 function celebrateChamp() {
@@ -531,6 +748,7 @@ function enterOnlineGame(match) {
 
 /** Redraw the whole board from `state`, no animation (resume, conflicts). */
 function rebuildBoard() {
+  clearEffects();
   busy = false;
   piecesEl.innerHTML = '';
   boardEl.classList.remove('showdown');
@@ -546,7 +764,7 @@ function rebuildBoard() {
   renderTally();
   const status = getStatus(state);
   if (status.over) {
-    finishGame(status);
+    finishGame(status, { fresh: false });
   } else {
     renderTurn();
   }
@@ -572,12 +790,17 @@ function onRemoteState(newState) {
   }
   if (added.length === 1 && countPieces(newState) === countPieces(prev) + 1) {
     // exactly one new buoy — their toss; let it splash properly
+    hideLandingPreview();
+    clearThreat();
     busy = true;
     resultBar.classList.add('hidden');
     dropPiece(added[0].v, added[0].r, added[0].c, () => {
       const status = getStatus(state);
       if (status.over) {
-        finishGame(status);
+        finishGame(status, {
+          fresh: true,
+          lastMove: { row: added[0].r, col: added[0].c },
+        });
       } else {
         busy = false;
         renderTurn();
@@ -594,6 +817,7 @@ function onRemoteStatus(status) {
   const opp = online && online.match.opponents()[0];
   if (opp && opp.left && !getStatus(state).over) {
     // they abandoned ship mid-game
+    clearEffects();
     colsEl.classList.add('disabled');
     turnChip.className = '';
     turnChip.textContent = '';
@@ -614,6 +838,7 @@ function onRemotePresence(opponents) {
 function onPollError(err) {
   if (err && err.code === 'not_found') {
     // room swept away (they left ages ago) — back to the dock
+    clearEffects();
     online.match.stop();
     clearSession(GAME);
     online = null;

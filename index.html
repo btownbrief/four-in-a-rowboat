@@ -108,9 +108,11 @@
     <div id="turnbar"><span id="turnChip"></span></div>
 
     <div id="lake">
+      <div id="threatChip" class="hidden">⚠️ THEY'VE GOT THREE</div>
       <div id="boat">
         <div id="board">
           <div id="pieces"></div>
+          <div id="landingPreview" class="piece hidden" aria-hidden="true"></div>
           <div id="holes" aria-hidden="true"></div>
         </div>
         <div id="cols" aria-label="Drop a buoy"></div>
@@ -124,10 +126,17 @@
       </div>
       <div class="waves waves-back" aria-hidden="true"></div>
       <div class="waves waves-front" aria-hidden="true"></div>
+      <div id="dropSplash" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i>
+      </div>
     </div>
 
     <div id="resultbar" class="hidden">
       <div id="resultText"></div>
+      <div id="gloat" class="hidden" aria-hidden="true">
+        <span id="gloatIcon"></span>
+        <span id="gloatBubble"></span>
+      </div>
       <div id="resultBtns">
         <button id="rematchBtn" class="big-btn">↻&nbsp; REMATCH</button>
       </div>
