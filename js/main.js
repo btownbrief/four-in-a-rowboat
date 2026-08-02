@@ -897,3 +897,33 @@ async function onlineRematch() {
 
 // Show the rejoin chip on first load if a crew is waiting on us.
 refreshRejoin();
+
+/* ------------------------------------------------- crew-link invites */
+// A hosted lobby can text a link instead of reading letters aloud:
+// ?join=ABCD opens the join panel with the code filled in. The param is
+// scrubbed from the URL immediately so refreshes don't re-trigger it.
+
+$('inviteBtn').addEventListener('click', async () => {
+  const match = lobbyEl._match;
+  if (!match) return;
+  const url = `${location.origin}${location.pathname}?join=${match.code}`;
+  const text = `Race me in Four in a Rowboat! ⛵ Tap to hop in my crew: ${url}`;
+  try {
+    if (navigator.share && /Mobi|Android|iPhone|iPad/.test(navigator.userAgent)) {
+      await navigator.share({ text });
+    } else {
+      await navigator.clipboard.writeText(url);
+      $('inviteBtn').textContent = '✓ LINK COPIED';
+      setTimeout(() => { $('inviteBtn').textContent = '📲 SEND AN INVITE'; }, 1800);
+    }
+  } catch { /* user closed the share sheet */ }
+});
+
+(() => {
+  const code = new URLSearchParams(location.search).get('join');
+  if (!code || !/^[A-Za-z0-9]{4}$/.test(code)) return;
+  history.replaceState(null, '', location.pathname);
+  openPanel('join');
+  opCode.value = code.toUpperCase();
+  if (opName.value) opCode.focus();
+})();

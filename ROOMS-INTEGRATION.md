@@ -79,3 +79,12 @@ One shared Supabase schema serves every game:
 `btownbrief.github.io/supabase/rooms-2026-07-30.sql`. Games self-register —
 no per-game setup. Until Stephen pastes that file into the Supabase SQL
 editor, clients get `not_ready` and the UI degrades gracefully.
+
+## 6. Crew-link invites (added 2026-08-02)
+
+The lobby carries a "📲 send an invite" button sharing
+`<game-url>?join=CODE` (navigator.share on mobile, clipboard fallback with
+a "link copied" flash). On load, a valid `?join=XXXX` opens the join panel
+with the code prefilled and is scrubbed with history.replaceState so a
+refresh never re-triggers it. Reference implementation: the end of this
+repo's js/main.js. Applies to duel games too (see maple-scramble).
