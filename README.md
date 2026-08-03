@@ -26,6 +26,7 @@ Plain static site — no build step, no frameworks, no npm. `index.html` +
 | `js/bot.js` | the Paddler and the Skipper; only ever calls the engine's public API |
 | `js/main.js` | UI only: renders state, animates buoy drops, dispatches moves, keeps the session tally |
 | `js/audio.js` | procedural WebAudio plops and fanfares, no audio files |
+| `js/leaderboard.js` | monthly leaderboard client (Supabase); vs-bot wins only, no accounts |
 
 Every push to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml`.
 
