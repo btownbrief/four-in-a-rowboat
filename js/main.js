@@ -10,6 +10,10 @@ import {
 import { chooseMove } from './bot.js';
 import { sound } from './audio.js';
 import { OnlineMatch, savedSession, clearSession, getName } from './rooms.js';
+import {
+  lbEnabled, fetchTop, submitScore, renamePlayer, monthLabel,
+  getName as lbGetName, playerId as lbPlayerId,
+} from './leaderboard.js';
 
 const $ = (id) => document.getElementById(id);
 const menuEl = $('menu');
@@ -196,6 +200,7 @@ function newGame() {
   piecesEl.innerHTML = '';
   boardEl.classList.remove('showdown');
   resultBar.classList.add('hidden');
+  resetLbPanel();
   gloatEl.classList.add('hidden');
   champEl.classList.add('hidden');
   colsEl.classList.remove('disabled');
@@ -453,6 +458,124 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
+/* ------------------------------------------------------------- leaderboard */
+// Monthly board for vs-bot wins only. Score rewards winning with the fewest
+// buoys tossed: base = max(1, 100 − your buoys), +1000 for Skipper wins so
+// any Skipper win outranks any Paddler win.
+
+const lbBox = $('lb');
+const lbList = $('lbList');
+const lbStatusEl = $('lbStatus');
+const lbForm = $('lbForm');
+const lbNameInput = $('lbNameInput');
+const lbThisBtn = $('lbThisBtn');
+const lbLastBtn = $('lbLastBtn');
+const lbRenameBtn = $('lbRenameBtn');
+let lbMonthOffset = 0;
+
+if (lbEnabled()) {
+  lbThisBtn.textContent = `🏆 ${monthLabel(0)}`;
+  lbLastBtn.textContent = monthLabel(-1);
+}
+
+function resetLbPanel() {
+  lbBox.classList.add('hidden');
+  lbForm.classList.add('hidden');
+  lbForm.dataset.pendingScore = '';
+}
+
+function botWinScore() {
+  let buoys = 0;
+  for (const row of state.grid) for (const v of row) if (v === RED) buoys++;
+  const base = Math.max(1, 100 - buoys);
+  return mode === 'skipper' ? 1000 + base : base;
+}
+
+// s >= 1000 means a Skipper win (base = s − 1000); base = 100 − buoys tossed
+function lbScoreLabel(s) {
+  const buoys = 100 - (s >= 1000 ? s - 1000 : s);
+  return s >= 1000 ? `⛵ ${buoys} buoys` : `🛶 ${buoys} buoys`;
+}
+
+// score > 0 submits a fresh win; score 0 just shows the standings read-only
+async function updateLeaderboard(score) {
+  if (!lbEnabled()) return;
+  lbBox.classList.remove('hidden');
+  if (score > 0 && !lbGetName()) {
+    // first win with no saved name: hold the score until they pick one
+    lbForm.classList.remove('hidden');
+    lbRenameBtn.classList.add('hidden');
+    lbStatusEl.textContent = 'Pick a name to join the monthly leaderboard!';
+    lbList.innerHTML = '';
+    lbForm.dataset.pendingScore = String(score);
+    return;
+  }
+  if (score > 0) {
+    try { await submitScore(score); } catch { /* offline — still show the board */ }
+  }
+  renderLbBoard();
+}
+
+async function renderLbBoard() {
+  lbForm.classList.add('hidden');
+  lbRenameBtn.classList.remove('hidden');
+  lbStatusEl.textContent = 'Loading…';
+  try {
+    const rows = await fetchTop(lbMonthOffset);
+    const me = lbPlayerId();
+    lbList.innerHTML = '';
+    rows.slice(0, 10).forEach((r, i) => {
+      const li = document.createElement('li');
+      if (r.player_id === me) li.className = 'me';
+      const medal = ['🥇', '🥈', '🥉'][i];
+      li.innerHTML = '<span class="rank"></span><span class="nm"></span><span class="sc"></span>';
+      li.querySelector('.rank').textContent = medal || `${i + 1}.`;
+      li.querySelector('.nm').textContent = r.name;
+      li.querySelector('.sc').textContent = lbScoreLabel(r.score);
+      lbList.appendChild(li);
+    });
+    const myRank = rows.findIndex((r) => r.player_id === me);
+    lbStatusEl.textContent = rows.length === 0
+      ? 'No scores yet this month — be the first!'
+      : myRank >= 0 ? `You're #${myRank + 1} of ${rows.length} this month` : '';
+  } catch {
+    lbStatusEl.textContent = 'Leaderboard unavailable (offline?)';
+  }
+}
+
+$('lbSaveBtn').addEventListener('click', async () => {
+  const name = lbNameInput.value.trim();
+  if (!name) { lbNameInput.focus(); return; }
+  const pending = Number(lbForm.dataset.pendingScore || 0);
+  lbForm.dataset.pendingScore = '';
+  try {
+    await renamePlayer(name); // saves locally + renames any existing rows
+    if (pending > 0) await submitScore(pending);
+  } catch { /* offline — the name is still saved locally */ }
+  renderLbBoard();
+});
+lbNameInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') $('lbSaveBtn').click();
+});
+lbRenameBtn.addEventListener('click', () => {
+  lbNameInput.value = lbGetName();
+  lbForm.classList.remove('hidden');
+  lbRenameBtn.classList.add('hidden');
+  lbNameInput.focus();
+});
+lbThisBtn.addEventListener('click', () => {
+  lbMonthOffset = 0;
+  lbThisBtn.classList.add('sel');
+  lbLastBtn.classList.remove('sel');
+  renderLbBoard();
+});
+lbLastBtn.addEventListener('click', () => {
+  lbMonthOffset = -1;
+  lbLastBtn.classList.add('sel');
+  lbThisBtn.classList.remove('sel');
+  renderLbBoard();
+});
+
 /* ------------------------------------------------------------- endgame */
 
 function finishGame(status, { fresh = false, lastMove = null } = {}) {
@@ -534,6 +657,13 @@ function finishGame(status, { fresh = false, lastMove = null } = {}) {
   renderTally();
   resultText.textContent = text;
   resultText.className = cls;
+  if (mode === 'paddler' || mode === 'skipper') {
+    // Submit only on a fresh human (red) win; losses and draws still show
+    // the standings read-only. finishGame is re-called with fresh:false when
+    // repainting a finished board — never resubmit then.
+    const humanWon = fresh && !status.draw && status.winner === RED;
+    updateLeaderboard(humanWon ? botWinScore() : 0);
+  }
   resultBar.classList.toggle('fresh', fresh && !reducedMotion);
   // Let the winning line sink in for a beat before the banner lands.
   const resultDelay = fresh ? (status.winner !== null ? 650 : 250) : 0;
@@ -753,6 +883,7 @@ function rebuildBoard() {
   piecesEl.innerHTML = '';
   boardEl.classList.remove('showdown');
   resultBar.classList.add('hidden');
+  resetLbPanel();
   champEl.classList.add('hidden');
   colsEl.classList.remove('disabled');
   rematchBtn.classList.remove('hidden');
